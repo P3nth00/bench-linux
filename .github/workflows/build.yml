@@ -7,127 +7,41 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    container:
-      image: archlinux:latest
-      options: --privileged
-
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
-      - name: Atualizar Arch
-        run: |
-          pacman -Syu --noconfirm
-
       - name: Instalar ferramentas
         run: |
-          pacman -S --noconfirm \
-            base-devel \
-            git \
-            wget \
-            curl \
-            ca-certificates \
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            debootstrap \
             squashfs-tools \
             xorriso \
-            cpio \
-            rsync \
-            tar \
-            gzip \
-            xz \
-            bzip2 \
-            zstd \
+            debian-archive-keyring \
             dosfstools \
-            mtools \
-            util-linux \
-            file \
-            gawk \
-            sed \
-            grep \
-            findutils
+            mtools
 
-      - name: Instalar keyring Debian
+      - name: Verificar ambiente
         run: |
-          mkdir -p /usr/share/keyrings
-
-          wget -O /tmp/debian-archive-keyring.deb \
-            http://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_all.deb
-
-          bsdtar -xf /tmp/debian-archive-keyring.deb -C /tmp/debian-keyring
-
-          cp /tmp/debian-keyring/usr/share/keyrings/debian-archive-keyring.gpg \
-            /usr/share/keyrings/debian-archive-keyring.gpg
-
-      - name: Baixar live-build
-        run: |
-          cd /tmp
-          rm -rf live-build
-
-          git clone --depth 1 \
-            https://salsa.debian.org/live-team/live-build.git \
-            live-build
-
-      - name: Instalar live-build
-        run: |
-          cd /tmp/live-build
-
-          mkdir -p /usr/share/live/build
-          cp -r data functions /usr/share/live/build
-          cp -r share/* /usr/share/live/build
-
-          mkdir -p /usr/bin
-          cp -a frontend/* /usr/bin
-
-          mkdir -p /usr/lib/live
-          cp -a scripts/* /usr/lib/live
-
-          mkdir -p /usr/share/doc/live-build
-          cp -r COPYING examples /usr/share/doc/live-build
-
-          sed -e 's/.*(\(.*\)).*/\1/; q' \
-            debian/changelog \
-            > /usr/share/live/build/VERSION
-
-      - name: Instalar debootstrap
-        run: |
-          cd /tmp
-          rm -rf debootstrap
-
-          git clone --depth 1 \
-            https://salsa.debian.org/installer-team/debootstrap.git \
-            debootstrap
-
-          cd debootstrap
-          make install
-
-      - name: Verificar ferramentas
-        run: |
-          echo "=== live-build ==="
           lb --version
-
-          echo "=== debootstrap ==="
           debootstrap --version
-
-          echo "=== Debian keyring ==="
-          ls -lh /usr/share/keyrings/debian-archive-keyring.gpg
-
-          echo "=== squashfs ==="
           mksquashfs -version
-
-          echo "=== xorriso ==="
           xorriso -version
+          test -f /usr/share/keyrings/debian-archive-keyring.gpg
 
-      - name: Limpar build anterior
+      - name: Limpar build
         run: |
-          rm -rf .build
-          rm -rf chroot
-          rm -rf cache
-          rm -rf binary
-          rm -rf bootstrap
-          rm -rf installer
-          rm -rf source
-          rm -rf tmp
-          rm -rf auto
-          rm -f *.iso
+          sudo rm -rf chroot
+          sudo rm -rf cache
+          sudo rm -rf binary
+          sudo rm -rf bootstrap
+          sudo rm -rf installer
+          sudo rm -rf source
+          sudo rm -rf tmp
+          sudo rm -rf .build
+          sudo rm -f *.iso
 
       - name: Configurar Debian Live
         run: |
@@ -140,22 +54,19 @@ jobs:
             --mirror-binary http://deb.debian.org/debian \
             --mirror-chroot http://deb.debian.org/debian \
             --mirror-chroot-security http://deb.debian.org/debian-security \
-            --security false
+            --debian-installer false
 
-      - name: Construir Bench Linux
+      - name: Construir ISO
         run: |
-          lb build
+          sudo lb build
 
       - name: Verificar ISO
         run: |
-          echo "=============================="
-          echo "       ISO GERADA"
-          echo "=============================="
-
+          echo "===== BENCH LINUX ====="
           ls -lh *.iso
           file *.iso
 
-      - name: Guardar ISO
+      - name: Salvar ISO
         uses: actions/upload-artifact@v4
         with:
           name: bench-linux-0.01
