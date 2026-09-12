@@ -21,9 +21,23 @@ jobs:
             xorriso \
             debian-archive-keyring
 
+      - name: Limpar configuração anterior
+        run: |
+          sudo rm -rf config
+          sudo rm -rf .build
+          sudo rm -rf chroot
+          sudo rm -rf cache
+          sudo rm -rf binary
+          sudo rm -rf bootstrap
+          sudo rm -rf installer
+          sudo rm -rf source
+          sudo rm -rf tmp
+          sudo rm -f *.iso
+
       - name: Configurar Debian Live
         run: |
           lb config \
+            --mode debian \
             --distribution bookworm \
             --architectures amd64 \
             --archive-areas "main contrib non-free non-free-firmware" \
