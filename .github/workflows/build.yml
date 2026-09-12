@@ -19,7 +19,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm
 
-      - name: Instalar ferramentas do Arch
+      - name: Instalar ferramentas
         run: |
           pacman -S --noconfirm \
             base-devel \
@@ -42,34 +42,45 @@ jobs:
             dosfstools \
             mtools \
             util-linux \
-            file
+            file \
+            po4a
 
-      - name: Baixar live-build Debian
+      - name: Instalar live-build
         run: |
-          mkdir -p /tmp/live-build
-          cd /tmp/live-build
+          cd /tmp
+          rm -rf live-build
 
           git clone --depth 1 \
-            https://salsa.debian.org/live-team/live-build.git
+            https://salsa.debian.org/live-team/live-build.git \
+            live-build
 
           cd live-build
-
           make install
 
       - name: Instalar debootstrap
         run: |
           cd /tmp
+          rm -rf debootstrap
+
           git clone --depth 1 \
-            https://salsa.debian.org/installer-team/debootstrap.git
+            https://salsa.debian.org/installer-team/debootstrap.git \
+            debootstrap
 
           cd debootstrap
           make install
 
       - name: Verificar ferramentas
         run: |
+          echo "=== live-build ==="
           lb --version
+
+          echo "=== debootstrap ==="
           debootstrap --version
+
+          echo "=== squashfs ==="
           mksquashfs -version
+
+          echo "=== xorriso ==="
           xorriso -version
 
       - name: Limpar build anterior
@@ -104,7 +115,10 @@ jobs:
 
       - name: Verificar ISO
         run: |
-          echo "=== ISO GERADA ==="
+          echo "=============================="
+          echo "       ISO GERADA"
+          echo "=============================="
+
           ls -lh *.iso
           file *.iso
 
