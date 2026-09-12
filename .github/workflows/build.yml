@@ -1,0 +1,42 @@
+name: Build Bench Linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Instalar ferramentas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            debootstrap \
+            squashfs-tools \
+            xorriso
+
+      - name: Configurar Debian Live
+        run: |
+          lb config \
+            --distribution bookworm \
+            --architectures amd64 \
+            --archive-areas "main contrib non-free non-free-firmware"
+
+      - name: Construir ISO
+        run: |
+          sudo lb build
+
+      - name: Mostrar ISO
+        run: |
+          ls -lh *.iso
+
+      - name: Guardar ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-linux-0.01
+          path: "*.iso"
