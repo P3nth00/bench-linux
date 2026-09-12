@@ -44,7 +44,8 @@ jobs:
             --mirror-binary http://deb.debian.org/debian \
             --mirror-chroot http://deb.debian.org/debian \
             --mirror-chroot-security http://deb.debian.org/debian-security \
-            --security false
+            --security false \
+            --apt-indices false
 
       - name: Construir ISO
         run: |
