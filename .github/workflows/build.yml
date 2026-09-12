@@ -1,17 +1,20 @@
-name: Build Bench Linux
+name: Build BENCH Linux
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Baixar projeto
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar ferramentas
+      - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -21,40 +24,53 @@ jobs:
             xorriso \
             debian-archive-keyring \
             dosfstools \
-            mtools
+            mtools \
+            isolinux \
+            syslinux-common
 
-      - name: Verificar ambiente
+      - name: Clean previous build
         run: |
-          lb --version
-          debootstrap --version
-          mksquashfs -version
-          xorriso -version
-          test -f /usr/share/keyrings/debian-archive-keyring.gpg
+          sudo rm -rf build
+          sudo rm -rf chroot
+          sudo rm -rf binary
+          sudo rm -rf cache
+          sudo rm -rf config/binary
+          sudo rm -rf config/chroot
+          sudo rm -rf config/bootstrap
+          sudo rm -rf config/source
+          sudo rm -rf config/archives
+          sudo rm -f config/*.conf
 
-      - name: Limpar build anterior
-        run: |
-          sudo lb clean --purge || true
-          sudo rm -rf chroot cache binary bootstrap installer source tmp .build
-          sudo rm -f *.iso
-
-      - name: Corrigir live-build Contents
+      - name: Patch live-build Contents path
         run: |
           FILE="/usr/lib/live/build/lb_chroot_linux-image"
 
-          sudo sed -i \
-            's#${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz#${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz#g' \
-            "$FILE"
+          sudo python3 - <<'PY'
+          from pathlib import Path
 
-          sudo sed -i \
-            's#${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz#${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz#g' \
-            "$FILE"
+          p = Path("/usr/lib/live/build/lb_chroot_linux-image")
+          s = p.read_text()
 
-          echo "===== VERIFICANDO CORREÇÃO ====="
-          grep -n "Contents-" "$FILE"
+          replacements = {
+              '${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz':
+              '${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz',
 
-      - name: Configurar Debian Live
+              '${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz':
+              '${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz'
+          }
+
+          for old, new in replacements.items():
+              s = s.replace(old, new)
+
+          p.write_text(s)
+          PY
+
+          echo "=== Contents paths ==="
+          grep -n "Contents-" "$FILE" || true
+
+      - name: Configure live-build
         run: |
-          lb config \
+          sudo lb config \
             --mode debian \
             --distribution bookworm \
             --architectures amd64 \
@@ -63,21 +79,25 @@ jobs:
             --mirror-binary http://deb.debian.org/debian \
             --mirror-chroot http://deb.debian.org/debian \
             --security false \
-            --debian-installer false
+            --debian-installer false \
+            --binary-images iso-hybrid
 
-      - name: Construir ISO
+      - name: Build ISO
         run: |
           sudo lb build
 
-      - name: Verificar ISO
+      - name: List generated files
+        if: always()
         run: |
-          echo "===== BENCH LINUX ====="
-          ls -lh *.iso
-          file *.iso
+          echo "=== Generated files ==="
+          find . -maxdepth 3 -type f \
+            \( -name "*.iso" -o -name "*.img" \) \
+            -print
 
-      - name: Salvar ISO
+      - name: Upload ISO
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: bench-linux-0.01
+          name: bench-linux-iso
           path: "*.iso"
           if-no-files-found: error
