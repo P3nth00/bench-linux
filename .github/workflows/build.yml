@@ -27,9 +27,6 @@ jobs:
             wget \
             curl \
             ca-certificates \
-            dpkg \
-            fakeroot \
-            binutils \
             squashfs-tools \
             xorriso \
             cpio \
@@ -42,7 +39,23 @@ jobs:
             dosfstools \
             mtools \
             util-linux \
-            file
+            file \
+            gawk \
+            sed \
+            grep \
+            findutils
+
+      - name: Instalar keyring Debian
+        run: |
+          mkdir -p /usr/share/keyrings
+
+          wget -O /tmp/debian-archive-keyring.deb \
+            http://deb.debian.org/debian/pool/main/d/debian-archive-keyring/debian-archive-keyring_2023.3+deb12u2_all.deb
+
+          bsdtar -xf /tmp/debian-archive-keyring.deb -C /tmp/debian-keyring
+
+          cp /tmp/debian-keyring/usr/share/keyrings/debian-archive-keyring.gpg \
+            /usr/share/keyrings/debian-archive-keyring.gpg
 
       - name: Baixar live-build
         run: |
@@ -93,6 +106,9 @@ jobs:
 
           echo "=== debootstrap ==="
           debootstrap --version
+
+          echo "=== Debian keyring ==="
+          ls -lh /usr/share/keyrings/debian-archive-keyring.gpg
 
           echo "=== squashfs ==="
           mksquashfs -version
