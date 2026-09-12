@@ -42,10 +42,9 @@ jobs:
             dosfstools \
             mtools \
             util-linux \
-            file \
-            po4a
+            file
 
-      - name: Instalar live-build
+      - name: Baixar live-build
         run: |
           cd /tmp
           rm -rf live-build
@@ -54,8 +53,26 @@ jobs:
             https://salsa.debian.org/live-team/live-build.git \
             live-build
 
-          cd live-build
-          make install
+      - name: Instalar live-build
+        run: |
+          cd /tmp/live-build
+
+          mkdir -p /usr/share/live/build
+          cp -r data functions /usr/share/live/build
+          cp -r share/* /usr/share/live/build
+
+          mkdir -p /usr/bin
+          cp -a frontend/* /usr/bin
+
+          mkdir -p /usr/lib/live
+          cp -a scripts/* /usr/lib/live
+
+          mkdir -p /usr/share/doc/live-build
+          cp -r COPYING examples /usr/share/doc/live-build
+
+          sed -e 's/.*(\(.*\)).*/\1/; q' \
+            debian/changelog \
+            > /usr/share/live/build/VERSION
 
       - name: Instalar debootstrap
         run: |
