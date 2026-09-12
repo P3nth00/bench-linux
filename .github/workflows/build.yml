@@ -7,31 +7,36 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    container:
+      image: debian:bookworm
+
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
       - name: Instalar ferramentas
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
+          apt-get update
+          apt-get install -y \
             live-build \
             debootstrap \
             squashfs-tools \
             xorriso \
-            debian-archive-keyring
+            debian-archive-keyring \
+            ca-certificates \
+            git
 
       - name: Limpar build anterior
         run: |
-          sudo rm -rf .build
-          sudo rm -rf chroot
-          sudo rm -rf cache
-          sudo rm -rf binary
-          sudo rm -rf bootstrap
-          sudo rm -rf installer
-          sudo rm -rf source
-          sudo rm -rf tmp
-          sudo rm -f *.iso
+          rm -rf .build
+          rm -rf chroot
+          rm -rf cache
+          rm -rf binary
+          rm -rf bootstrap
+          rm -rf installer
+          rm -rf source
+          rm -rf tmp
+          rm -f *.iso
 
       - name: Configurar Debian Live
         run: |
@@ -43,13 +48,11 @@ jobs:
             --mirror-bootstrap http://deb.debian.org/debian \
             --mirror-binary http://deb.debian.org/debian \
             --mirror-chroot http://deb.debian.org/debian \
-            --mirror-chroot-security http://deb.debian.org/debian-security \
-            --security false \
-            --apt-indices false
+            --mirror-chroot-security http://deb.debian.org/debian-security
 
       - name: Construir ISO
         run: |
-          sudo lb build
+          lb build
 
       - name: Mostrar ISO
         run: |
