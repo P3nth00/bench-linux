@@ -7,43 +7,83 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    container:
+      image: archlinux:latest
+      options: --privileged
+
     steps:
       - name: Baixar projeto
         uses: actions/checkout@v4
 
-      - name: Instalar ferramentas
+      - name: Atualizar Arch
         run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            debootstrap \
+          pacman -Syu --noconfirm
+
+      - name: Instalar ferramentas do Arch
+        run: |
+          pacman -S --noconfirm \
+            base-devel \
+            git \
+            wget \
+            curl \
+            ca-certificates \
+            dpkg \
+            fakeroot \
+            binutils \
             squashfs-tools \
             xorriso \
-            debian-archive-keyring \
-            wget \
-            dpkg-dev
+            cpio \
+            rsync \
+            tar \
+            gzip \
+            xz \
+            bzip2 \
+            zstd \
+            dosfstools \
+            mtools \
+            util-linux \
+            file
 
-      - name: Instalar live-build Debian
+      - name: Baixar live-build Debian
         run: |
-          wget http://deb.debian.org/debian/pool/main/l/live-build/live-build_20230116_all.deb
-          sudo dpkg -i live-build_20230116_all.deb || true
-          sudo apt-get -f install -y
+          mkdir -p /tmp/live-build
+          cd /tmp/live-build
 
-      - name: Verificar live-build
+          git clone --depth 1 \
+            https://salsa.debian.org/live-team/live-build.git
+
+          cd live-build
+
+          make install
+
+      - name: Instalar debootstrap
+        run: |
+          cd /tmp
+          git clone --depth 1 \
+            https://salsa.debian.org/installer-team/debootstrap.git
+
+          cd debootstrap
+          make install
+
+      - name: Verificar ferramentas
         run: |
           lb --version
-          which lb
+          debootstrap --version
+          mksquashfs -version
+          xorriso -version
 
       - name: Limpar build anterior
         run: |
-          sudo rm -rf .build
-          sudo rm -rf chroot
-          sudo rm -rf cache
-          sudo rm -rf binary
-          sudo rm -rf bootstrap
-          sudo rm -rf installer
-          sudo rm -rf source
-          sudo rm -rf tmp
-          sudo rm -f *.iso
+          rm -rf .build
+          rm -rf chroot
+          rm -rf cache
+          rm -rf binary
+          rm -rf bootstrap
+          rm -rf installer
+          rm -rf source
+          rm -rf tmp
+          rm -rf auto
+          rm -f *.iso
 
       - name: Configurar Debian Live
         run: |
@@ -55,18 +95,22 @@ jobs:
             --mirror-bootstrap http://deb.debian.org/debian \
             --mirror-binary http://deb.debian.org/debian \
             --mirror-chroot http://deb.debian.org/debian \
-            --mirror-chroot-security http://deb.debian.org/debian-security
+            --mirror-chroot-security http://deb.debian.org/debian-security \
+            --security false
 
-      - name: Construir ISO
+      - name: Construir Bench Linux
         run: |
-          sudo lb build
+          lb build
 
-      - name: Mostrar ISO
+      - name: Verificar ISO
         run: |
+          echo "=== ISO GERADA ==="
           ls -lh *.iso
+          file *.iso
 
       - name: Guardar ISO
         uses: actions/upload-artifact@v4
         with:
           name: bench-linux-0.01
           path: "*.iso"
+          if-no-files-found: error
